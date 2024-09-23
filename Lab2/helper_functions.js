@@ -178,7 +178,7 @@ export function mirrorBytes(val) {
         value[value.length - i - 1] = tmp;
     }
     return value;
-    //return val;
+    // return val;
 }
 
 

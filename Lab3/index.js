@@ -2,68 +2,39 @@ import * as cypher from "./don't_know_how_to_call_it.js"
 import fs from 'fs';
 
 
-const KEY = new Uint8Array( [ 
-    0b00111010,
-    0b01111111,
-    0b11000001,
-    0b10011011,
-    0b11100010,
-    0b00000101,
-    0b10101101,
-    0b01101100,
-    0b11110000,
-    0b00010100,
-    0b00101110,
-    0b10001000,
-    0b10110111,
-    0b01001101,
-    0b00100011,
-    0b01011001,
-    0b10001010,
-    0b11010011,
-    0b00000001,
-    0b01101111,
-    0b10110100,
-    0b10010000,
-    0b00111110,
-    0b01110111,
-    0b11001001,
-    0b00010010,
-    0b10100101,
-    0b01001000,
-    0b11110110,
-    0b01111101,
-    0b00101011,
-    0b11101110
-] );
-
-
 function main() {
-    const [,, mode, inputFile, outputFile] = process.argv;
+    const [,, mode, inputFile, outputFile, key1, key2] = process.argv;
 
-    if (!mode || !inputFile || !outputFile) {
-        console.error('Usage: node cypher.js <encrypt|decrypt> <inputFile> <outputFile> <key>');
+    if (!mode || !inputFile || !outputFile || !key1 || key1.length % 2 != 0 || mode === "decrypt" && (!key2 || key2.length % 2 != 0)) {
+        console.error('Usage: node cypher.js <encrypt|decrypt> <inputFile> <outputFile> <key|key1 key2>');
         process.exit(1);
     }
 
     // const mode = "encrypt";
     // const inputFile = "test.txt";
     // const outputFile = "test_result.txt";
+    // const key1 = "01fffffffffffff7ffffffffffffb800000000000100000000000001"
 
     // const mode = "decrypt";
     // const inputFile = "test_result.txt";
     // const outputFile = "test.txt";
+    // const key1 = "3ffffffffffffeffffffffffffff";
+    // const key2 = "07ffffffffffffffffffffffffff";
 
-    // Read the input file
     const inputData = fs.readFileSync(inputFile);
 
     let resultData;
     if (mode === 'encrypt') {
-        resultData = cypher.processData(inputData, KEY, false);
+        resultData = cypher.encrypt(inputData, Buffer.from(key1, "hex"));
     } else if (mode === 'decrypt') {
-        resultData = cypher.processData(inputData, KEY, true);
+        resultData = cypher.decrypt(inputData, [Buffer.from(key1, "hex"), Buffer.from(key2, "hex")]);
     } else {
         console.error('Invalid mode! Use "encrypt" or "decrypt".');
+        process.exit(1);
+    }
+
+    if (resultData == null) {
+        console.error('Key is not suitable');
         process.exit(1);
     }
 

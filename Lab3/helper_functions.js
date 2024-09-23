@@ -97,7 +97,7 @@ export function shiftRight(byt, shift, fill = false) {
 
 
 export function setBit(value, pos) {
-    value[pos / BITS_IN_BYTE] |= 1 << (BITS_IN_BYTE - 1 - pos % BITS_IN_BYTE);
+    value[Math.floor(pos / BITS_IN_BYTE)] |= 1 << (BITS_IN_BYTE - 1 - pos % BITS_IN_BYTE);
 }
 
 
@@ -105,8 +105,13 @@ export function valueComp(value1, value2) {
     let i = 0;
     let j = 0;
 
-    while(i < value1.length && value1[i] == 0) i++;
-    while(j < value2.length && value2[j] == 0) j++;
+    while(i < value1.length - 1 && value1[i] == 0) i++;
+    while(j < value2.length - 1 && value2[j] == 0) j++;
+
+    while(i < value1.length - 1 && j < value2.length - 1 && value1[i] == value2[j]) {
+        i++;
+        j++;
+    }
 
     return (((value1.length - i) - (value2.length - j)) << BITS_IN_BYTE) + value1[i] - value2[j];
 }
@@ -114,7 +119,7 @@ export function valueComp(value1, value2) {
 
 export function valueSum(value1, value2) {
     if (valueComp(value1, value2) < 0) {
-        tmp = value1;
+        let tmp = value1;
         value1 = value2;
         value2 = tmp;
     }
@@ -124,7 +129,7 @@ export function valueSum(value1, value2) {
     let mod = 1 << BITS_IN_BYTE
     
     let i;
-    for (i = 0; i < result.length; i++) {
+    for (i = 0; i < value2.length; i++) {
         acc = value1[value1.length - 1 - i] + value2[value2.length - 1 - i] + acc;
         result[result.length - 1 - i] = acc % mod;
 
@@ -132,6 +137,18 @@ export function valueSum(value1, value2) {
             acc = 1;
         else
             acc = 0;
+    }
+
+    while (i < value1.length) {
+        acc += value1[value1.length - 1 - i];
+        result[result.length - 1 - i] = (acc + mod) % mod;
+
+        if (acc >= mod)
+            acc = 1;
+        else
+            acc = 0;
+
+        i++;
     }
 
     if (acc == 1) {
@@ -146,16 +163,18 @@ export function valueSum(value1, value2) {
 }
 
 
-export function valueSub(value1, value2) {
+export function valueSub(value1, value2, trunc = true) {
     if (valueComp(value1, value2) < 0) {
-        throw new Error('Invalid args');
+        let tmp = value1;
+        value1 = value2;
+        value2 = tmp;
     }
 
     let result = new Uint8Array(value1.length);
     let acc = 0;
     let mod = 1 << BITS_IN_BYTE
 
-    let i
+    let i;
     for (i = 0; i < value2.length; i++) {
         acc = value1[value1.length - 1 - i] - value2[value2.length - 1 - i] - acc;
         result[result.length - 1 - i] = (acc + mod) % mod;
@@ -174,89 +193,172 @@ export function valueSub(value1, value2) {
             acc = 1;
         else
             acc = 0;
+
+        i++;
+    }
+
+    if (trunc) {
+        i = 0;
+        while(i < result.length && result[i++] == 0);
+        result = result.subarray(i - 1, result.length);
     }
 
     return result
 }
 
 
-export function valueMul(value1, value2) {
+export function valueMul(value1, value2, trunc = true) {
     if (valueComp(value1, value2) < 0) {
-        tmp = value1;
+        let tmp = value1;
         value1 = value2;
         value2 = tmp;
     }
 
     let result = new Uint8Array(value1.length + value2.length);
-    let acc = 0;
     let mod = 1 << BITS_IN_BYTE
     
     for (let i = 0; i < value2.length; i++) {
         let acc = 0;
 
         for (let j = 0; j < value1.length; j++) {
-            acc = value1[value1.length - 1 - j] * value2[value2.length - 1 - i] + acc;
-            result[value1.length + value2.length - 1 - i - j] += acc % mod;
-            acc = Math.floor(acc, mod);
+            acc = result[value1.length + value2.length - 1 - i - j] + value1[value1.length - 1 - j] * value2[value2.length - 1 - i] + acc;
+            result[value1.length + value2.length - 1 - i - j] = acc % mod;
+            acc = Math.floor(acc / mod);
         }
-
-        result[value2.length - 1 - i] += acc;
+        
+        for(let k = 0; acc > 0; k++) {
+            acc = result[value2.length - 1 - i - k] + acc;
+            result[value2.length - 1 - i - k] = acc % mod;
+            acc = Math.floor(acc / mod);
+        }
     }
 
-    while(result.length > 1 && result[0] == 0) {
-        result.shift();
+    if (trunc) {
+        let i = 0;
+        while(i < result.length && result[i++] == 0);
+        result = result.subarray(i - 1, result.length);
     }
 
     return result
 }
 
 
-function valueDivStep(value1, value2, acc = 1) {
-    let result = shiftLeft(value2, acc);
+function valueDivStep(value1, value2) {
+    let i = 0;
+    let j = 0;
 
-    if (valueComp(value1, result) < 0)
-        return [value2, acc];
+    while(i < value1.length - 1 && value1[i] == 0) i++;
+    while(i < value2.length - 1 && value2[j] == 0) j++;
 
-    result = valueDivStep(value1, result, acc * 2);
+    let shift;
+    if (value1[i] < value2[j]) {
+        shift = Math.floor(Math.log2(value2[j] / value1[i]));
+        value1 = shiftLeft(value1, shift)
+        shift = -shift;
+    } else {
+        shift = Math.floor(Math.log2(value1[i] / value2[j]));
+        value2 = shiftLeft(value2, shift);
+    }
 
-    let tmp = shiftLeft(result[0], acc);
+    while (i < value1.length - 1 && j < value2.length - 1 && value1[i] == value2[j]) {
+        i++;
+        j++;
+    }
 
-    if (valueComp(value1, tmp) < 0)
-        return result;
-    
-    return [tmp, result[1] + acc];
+    if (value1[i] < value2[j]) {
+        shift--;
+    }
+
+    return shift + ((value1.length - i) - (value2.length - j)) * BITS_IN_BYTE;
 }
 
 
-export function valueDiv(value1, value2) {
-    if (valueComp(value1, value2) < 0) {
-        throw new Error('Invalid args');
+export function valueDiv(value1, value2, trunc1 = true, trunc2 = true) {
+    if (valueComp(value1, value2) < 0 || valueComp(value1, new Uint8Array([0])) == 0 || valueComp(value2, new Uint8Array([0])) == 0) {
+        return [0, value1];
     }
 
     let result = new Uint8Array(value1.length);
+    let tmp3 = new Uint8Array(value1.length);
+
+    for (let i = 0; i < value2.length; i++) {
+        tmp3[tmp3.length - 1 - i] = value2[value2.length - 1 - i];
+    }
 
     while (valueComp(value1, value2) >= 0) {
         let tmp = valueDivStep(value1, value2);
-        setBit(result, result.length * BITS_IN_BYTE - tmp[1])        
+        setBit(result, result.length * BITS_IN_BYTE - 1 - tmp);
 
-        value1 = valueSub(value1, tmp[0]);
+        let tmp1 = valueSum(valueMul(result, value2), valueSub(value1, shiftLeft(tmp3, tmp)));
+        let tmp5 = shiftLeft(tmp3, tmp + 1);
+        let tmp6 = shiftLeft(tmp3, tmp - 1);
+        let tmp7 = shiftLeft(tmp3, tmp);
+        value1 = shiftLeft(valueSub(shiftRight(value1, tmp, true), value2, false), tmp, true);
+
     }
 
-    return result;
+    if (trunc1) {
+        let i = 0;
+        while(i < result.length && result[i++] == 0);
+        result = result.subarray(i - 1, result.length);
+    }
+
+    if (trunc2) {
+        let i = 0;
+        while(i < value1.length && value1[i++] == 0);
+        value1 = value1.subarray(i - 1, value1.length);
+    }
+
+    return [result, value1];
 }
 
 
-export function doMod(value, mod) {
-    if (valueComp(value, mod) < 0) {
-        throw new Error('Invalid args');
+export function valuePow(value, pow, mod) {
+    if (valueComp(pow, new Uint8Array([1])) == 0)
+        return value;
+
+    let result = valuePow(valueDiv(valueMul(value, value), mod)[1], shiftRight(pow, 1), mod);
+
+    if (pow[pow.length - 1] & 1 == 1)
+        result = valueDiv(valueMul(result, value), mod)[1];
+
+    return result
+}
+
+
+export function extendedEuclid(value1, value2) {
+    let r0 = value1;
+    let r1 = value2;
+    let a0 = new Uint8Array([1]);
+    let a1 = new Uint8Array([0]);
+    let b0 = new Uint8Array([0]);
+    let b1 = new Uint8Array([1]);
+    let zero = new Uint8Array([0]);
+    let tmp;
+
+    let i = 0;
+    let div = valueDiv(r0, r1);
+    while (valueComp(r1, zero) != 0) {
+        r0 = r1;
+        r1 = div[1];
+
+        tmp = a1;
+        a1 = valueSum(a0, valueMul(a1, div[0]));
+        a0 = tmp;
+
+        tmp = b1;
+        b1 = valueSum(b0, valueMul(b1, div[0]));
+        b0 = tmp;
+
+        let tmp1 = valueSub(valueMul(value1, a0), valueMul(value2, b0));
+
+        i++;
+        div = valueDiv(r0, r1);
+        tmp1 = valueSum(valueMul(div[0], r1), div[1]);
+        tmp1 = 0;
     }
 
-    while (valueComp(value, mod) >= 0) {
-        let tmp = valueDivStep(value, mod);
-        value = valueSub(value, tmp[0]);
-    }
-
-    return value;
+    return [r0, a0, b0, i]; // b0 <= 0 and a0 >= 0 if i % 2 == 0 and i != 1
 }
 
 

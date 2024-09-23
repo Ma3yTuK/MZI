@@ -42,7 +42,7 @@ function main() {
     const [,, mode, inputFile, outputFile] = process.argv;
 
     if (!mode || !inputFile || !outputFile) {
-        console.error('Usage: node cypher.js <encrypt|decrypt> <inputFile> <outputFile> <key>');
+        console.error('Usage: node cypher.js <encrypt|decrypt> <inputFile> <outputFile>');
         process.exit(1);
     }
 

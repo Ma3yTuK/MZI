@@ -212,14 +212,14 @@ function mirrorByte(byt) {
 }
 
 function mirrorValue(val) {
-    // let value = new Uint8Array(val);
-    // for (let i = 0; i < VALUE_SIZE / 2; i++) {
-    //     let tmp = mirrorByte(value[i]);
-    //     value[i] = mirrorByte(value[VALUE_SIZE - i - 1]);
-    //     value[VALUE_SIZE - i - 1] = tmp;
-    // }
-    // return value;
-    return val;
+    let value = new Uint8Array(val);
+    for (let i = 0; i < VALUE_SIZE / 2; i++) {
+        let tmp = mirrorByte(value[i]);
+        value[i] = mirrorByte(value[VALUE_SIZE - i - 1]);
+        value[VALUE_SIZE - i - 1] = tmp;
+    }
+    return value;
+    //return val;
 }
 
 export let CM = [
