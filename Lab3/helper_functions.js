@@ -279,20 +279,11 @@ export function valueDiv(value1, value2, trunc1 = true, trunc2 = true) {
     }
 
     let result = new Uint8Array(value1.length);
-    let tmp3 = new Uint8Array(value1.length);
-
-    for (let i = 0; i < value2.length; i++) {
-        tmp3[tmp3.length - 1 - i] = value2[value2.length - 1 - i];
-    }
 
     while (valueComp(value1, value2) >= 0) {
         let tmp = valueDivStep(value1, value2);
         setBit(result, result.length * BITS_IN_BYTE - 1 - tmp);
 
-        let tmp1 = valueSum(valueMul(result, value2), valueSub(value1, shiftLeft(tmp3, tmp)));
-        let tmp5 = shiftLeft(tmp3, tmp + 1);
-        let tmp6 = shiftLeft(tmp3, tmp - 1);
-        let tmp7 = shiftLeft(tmp3, tmp);
         value1 = shiftLeft(valueSub(shiftRight(value1, tmp, true), value2, false), tmp, true);
 
     }
@@ -350,12 +341,8 @@ export function extendedEuclid(value1, value2) {
         b1 = valueSum(b0, valueMul(b1, div[0]));
         b0 = tmp;
 
-        let tmp1 = valueSub(valueMul(value1, a0), valueMul(value2, b0));
-
         i++;
         div = valueDiv(r0, r1);
-        tmp1 = valueSum(valueMul(div[0], r1), div[1]);
-        tmp1 = 0;
     }
 
     return [r0, a0, b0, i]; // b0 <= 0 and a0 >= 0 if i % 2 == 0 and i != 1

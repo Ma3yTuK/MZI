@@ -1,7 +1,7 @@
 import * as helpers from "./helper_functions.js";
 
 
-let HEADER = new Uint8Array( [0b11111111] );
+let HEADER = new Uint8Array( [0b00000001] );
 let NUMBER_OF_CHOICES = 4;
 
 

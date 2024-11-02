@@ -3,23 +3,23 @@ import fs from 'fs';
 
 
 function main() {
-    const [,, mode, inputFile, outputFile, key1, key2] = process.argv;
+    // const [,, mode, inputFile, outputFile, key1, key2] = process.argv;
 
-    if (!mode || !inputFile || !outputFile || !key1 || key1.length % 2 != 0 || mode === "decrypt" && (!key2 || key2.length % 2 != 0)) {
-        console.error('Usage: node cypher.js <encrypt|decrypt> <inputFile> <outputFile> <key|key1 key2>');
-        process.exit(1);
-    }
+    // if (!mode || !inputFile || !outputFile || !key1 || key1.length % 2 != 0 || mode === "decrypt" && (!key2 || key2.length % 2 != 0)) {
+    //     console.error('Usage: node cypher.js <encrypt|decrypt> <inputFile> <outputFile> <key|key1 key2>');
+    //     process.exit(1);
+    // }
 
     // const mode = "encrypt";
     // const inputFile = "test.txt";
     // const outputFile = "test_result.txt";
-    // const key1 = "01fffffffffffff7ffffffffffffb800000000000100000000000001"
+    // const key1 = "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7ffffffffffffffffffffe0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001"
 
-    // const mode = "decrypt";
-    // const inputFile = "test_result.txt";
-    // const outputFile = "test.txt";
-    // const key1 = "3ffffffffffffeffffffffffffff";
-    // const key2 = "07ffffffffffffffffffffffffff";
+    const mode = "decrypt";
+    const inputFile = "test_result.txt";
+    const outputFile = "test.txt";
+    const key1 = "01ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+    const key2 = "7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
 
     const inputData = fs.readFileSync(inputFile);
 
