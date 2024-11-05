@@ -1,57 +1,104 @@
 import * as cypher from "./don't_know_how_to_call_it.js"
 import * as hf from "./helper_functions.js"
-import fs from 'fs';
+import fs, { existsSync } from 'fs';
+
+
+const BITS_IN_BYTE = 8;
 
 
 function main() {
-    let keys = cypher.genKey(2048, 1751, 27);
+    // let keys = cypher.genKey(256, 200, 7);
+    // let keys = cypher.genKey(2048, 1751, 27);
 
-    const inputFile = "test.txt";
-    const outputFile = "test_result.txt";
-
-    const inputData = fs.readFileSync(inputFile);
-
-    fs.writeFileSync(outputFile, cypher.decrypt(cypher.encrypt(inputData, keys[0]), keys[1]));
-
-    // const [,, mode, inputFile, outputFile, key1, key2] = process.argv;
-
-    // if (!mode || !inputFile || !outputFile || !key1 || key1.length % 2 != 0 || mode === "decrypt" && (!key2 || key2.length % 2 != 0)) {
-    //     console.error('Usage: node cypher.js <encrypt|decrypt> <inputFile> <outputFile> <key|key1 key2>');
-    //     process.exit(1);
-    // }
-
-    // const mode = "encrypt";
     // const inputFile = "test.txt";
-    // const outputFile = "test_result.txt";
-    // const key1 = "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7ffffffffffffffffffffe0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001"
-
-    // const mode = "decrypt";
-    // const inputFile = "test_result.txt";
-    // const outputFile = "test.txt";
-    // const key1 = "01ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
-    // const key2 = "7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+    // const outputFile1 = "encrypted.txt";
+    // const outputFile2 = "decrypted.txt";
 
     // const inputData = fs.readFileSync(inputFile);
 
-    // let resultData;
-    // if (mode === 'encrypt') {
-    //     resultData = cypher.encrypt(inputData, Buffer.from(key1, "hex"));
-    // } else if (mode === 'decrypt') {
-    //     resultData = cypher.decrypt(inputData, [Buffer.from(key1, "hex"), Buffer.from(key2, "hex")]);
-    // } else {
-    //     console.error('Invalid mode! Use "encrypt" or "decrypt".');
-    //     process.exit(1);
-    // }
+    // fs.writeFileSync(outputFile1, cypher.encrypt(inputData, keys[0]));
+    // fs.writeFileSync(outputFile2, cypher.decrypt(fs.readFileSync(outputFile1), keys[1]));
 
-    // if (resultData == null) {
-    //     console.error('Key is not suitable');
-    //     process.exit(1);
-    // }
+    const [,, mode, arg1, arg2, arg3, arg4, arg5] = process.argv;
 
-    // // Write the result to the output file
-    // fs.writeFileSync(outputFile, Buffer.from(resultData));
+    if (mode === "generate") {
 
-    // console.log(`${mode.charAt(0).toUpperCase() + mode.slice(1)}ion complete.`);
+        const [n, k, t] = [parseInt(arg1), parseInt(arg2), parseInt(arg3)];
+
+        if (isNaN(n) || isNaN(k) || isNaN(t)) {
+            console.error("Invalid key parameters");
+            return;
+        }
+
+        if (1 << ((n - k) / t) !== n) {
+            console.error("Invalid key parameters");
+            return;
+        }
+
+        const keys = cypher.genKey(n, k, t);
+
+        try {
+            hf.writeObjectToFile(keys[0], arg4);
+        } catch (error) {
+            console.error(`Cannot write to file ${outputFile}`);
+            return;
+        }
+
+        try {
+            hf.writeObjectToFile(keys[1], arg5);
+        } catch (error) {
+            console.error(`Cannot write to file ${outputFile}`);
+            return;
+        }
+        
+        console.log(`Keys generated successfully`);
+
+    } else if (mode === "encrypt" || mode === "decrypt") {
+        
+        const [inputFile, outputFile, keyFile] = [arg1, arg2, arg3];
+
+        if (!existsSync(arg1) || !existsSync(arg3)) {
+            console.error("Invalid arguments");
+            return;
+        }
+
+        const inputData = fs.readFileSync(inputFile);
+        
+        let data;
+        
+        try {
+            const key = hf.readObjectFromFile(keyFile);
+
+            if (mode === "encrypt") {
+                data = cypher.encrypt(inputData, key);
+            } else {
+
+                if (inputData.length * BITS_IN_BYTE % key[key.length - 1] !== 0) {
+                    console.error(`Invalid input file`);
+                    return;
+                }
+
+                data = cypher.decrypt(inputData, key);
+            }
+
+        } catch (error) {
+            console.error(`Invalid key format`);
+            return;
+        }
+
+        try {
+            fs.writeFileSync(outputFile, data);
+        } catch (error) {
+            console.error(`Cannot write to file ${outputFile}`);
+            return;
+        }
+
+        console.log("Finished successfully");
+
+    } else {
+        console.error("Invalid mode");
+        return;
+    }
 }
 
 main();

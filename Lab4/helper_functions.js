@@ -13,13 +13,13 @@ const MAX_BYTE = 255;
 
 
 export function allignBuffer(message, mod, for_size = 4) {
-    let old_size = message.length
-    let new_size = Math.ceil((old_size + for_size) / mod) * mod
+    let old_size = message.length;
+    let new_size = Math.ceil(Math.ceil((old_size + for_size) * BITS_IN_BYTE / mod) * mod / BITS_IN_BYTE);
 
     let result = new Uint8Array(new_size);
 
     for (let i = 0; i < old_size; i++) {
-        result[old_size + i] = message[i];
+        result[for_size + i] = message[i];
     }
 
     while(for_size > 0 && new_size > 0) {
@@ -36,7 +36,7 @@ export function deAllignBuffer(message, for_size = 4) {
     let new_length = 0;
 
     for (let i = 0; i < for_size; i++)
-        new_length = new_length << BITS_IN_BYTE + result[i];
+        new_length = (new_length << BITS_IN_BYTE) + message[i];
 
     return message.slice(for_size, for_size + new_length);
 }
@@ -121,9 +121,9 @@ export function randomVals(mod, count, base = 0) {
 
 export function randomWithOnes(size, count) {
     let indexes = randomVals(size, count);
-    let result = new Uint8Array(Math.ceil(size / BITS_IN_BYTE) * BITS_IN_BYTE);
+    let result = new Uint8Array(Math.ceil(size / BITS_IN_BYTE));
 
-    for (let i = 0; i < n; i++) {
+    for (let i = 0; i < count; i++) {
         let index = Math.floor(Math.random() * indexes.length);
         setBit(result, indexes[index]);
         indexes[index] = indexes[index.length - 1 - i];
@@ -224,7 +224,7 @@ export function countOnes(value, size) {
 
 
 export function matrixMulVector(matrix, vector, size_m, size) {
-    let byteSize = Math.ceil(size / BITS_IN_BYTE);
+    let byteSize = Math.ceil(size_m / BITS_IN_BYTE);
     let result = new Uint8Array(byteSize);
 
     for (let j = 0; j < byteSize; j++) {
@@ -584,7 +584,7 @@ export function gausF(matrix, size, size2) {
 }
 
 
-export function gausB(matrix, size, size2) {
+export function gausB(matrix, size, size2) { // first columns then rows just because
     let result = new Array(matrix.length);
     for (let i = 0; i < size2; i++) {
         result[i] = matrix[i].slice();
@@ -638,12 +638,41 @@ export function inverseMatrix(matrix, size) {
 }
 
 
-export function slau(matrix, size, count, b = new Uint8Array(Math.ceil(matrix.length / BITS_IN_BYTE))) { // may be crap
-    let gaussed = gausB(matrix, size, matrix.length);
+export function findKernel(matrix, size1, size2) { // size2 must be bigger
+    let identity = genEMatrix(size2);
+    let result = new Array(size2 + size1);
+    let i;
+
+    for (i = 0; i < size1; i++) 
+        result[i] = matrix[i].slice();
+
+    for (let j = 0; j < size2; j++)
+        result[i + j] = identity[j].slice();
+
+    result = transpose(result, size1 + size2, size2);
+    result = gausF(result, size1 + size2, size2);
+
+    for (i = 0; i < size2 && countOnes(result[i], size1) > 0; i++);
+    
+    for (let j = 0; j + i < size2; j++)
+        result[j] = shiftLeft(result[j + i], size1).slice(0, Math.ceil(size2 / BITS_IN_BYTE));
+
+    return result.slice(0, size2 - i);
+}
+
+
+export function slau(matrix, size2, size, count, b = new Uint8Array(Math.ceil(matrix.length / BITS_IN_BYTE))) { // may be crap
+    let gaussed = new Array(size2);
+
+    for (let i = 0; i < gaussed.length; i++)
+        gaussed[i] = new Uint8Array([...matrix[i], getBit(b, i)]);
+
+    gaussed = gausB(gaussed, size, gaussed.length);
     let result = [new Uint8Array(Math.ceil(size / BITS_IN_BYTE))];
     let current_size = -1;
 
     for (let i = 0; i < gaussed.length; i++) {
+        let current_sliced = gaussed[i].slice(0, gaussed[i].length - 1);
         let j;
         for (j = size - 1; j > current_size; j--)
             if (getBit(gaussed[i], j) == 1)
@@ -659,7 +688,7 @@ export function slau(matrix, size, count, b = new Uint8Array(Math.ceil(matrix.le
                 additional[l] = shiftLeft(additional[l], size - j);
                 for (let k = 0; k < result.length; k++) {
                     let new_val = valueXOR(result[k], additional[l]);
-                    if (countOnes(valueAND(new_val, gaussed[i]), size) % 2 != getBit(b, i)) {
+                    if (countOnes(valueAND(new_val, current_sliced), size) % 2 != gaussed[i][gaussed[i].length - 1]) {
                         setBit(new_val, j);
                     }
                     new_result.push(new_val);
@@ -669,7 +698,7 @@ export function slau(matrix, size, count, b = new Uint8Array(Math.ceil(matrix.le
             additional[0] = shiftLeft(additional[0], size - j);
             for (let k = 0; k < result.length; k++) {
                 result[k] = valueXOR(result[k], additional[0]);
-                if (countOnes(valueAND(result[k], gaussed[i]), size) % 2 != getBit(b, i)) {
+                if (countOnes(valueAND(result[k], current_sliced), size) % 2 != gaussed[i][gaussed[i].length - 1]) {
                     setBit(result[k], j);
                 }
             }
@@ -713,11 +742,11 @@ export function valueDiv(value1, value2) {
 }
 
 
-export function valuePow(value, pow, mod = new Uint8Array([0]), mul = valueMul, composit_div = valueDiv) {
+export function valuePow(value, pow, mod = new Uint8Array([0]), mul = valueMul, composit_div = valueDiv, def = new Uint8Array([1])) {
     if (valueComp(pow, new Uint8Array([0])) == 0)
-        return new Uint8Array([1]);
+        return def;
 
-    let result = valuePow(composit_div(mul(value, value), mod)[1], shiftRight(pow, 1), mod);
+    let result = valuePow(composit_div(mul(value, value), mod)[1], shiftRight(pow, 1), mod, mul, composit_div, def);
 
     if (pow[pow.length - 1] & 1 == 1)
         result = composit_div(mul(result, value), mod)[1];
@@ -726,13 +755,17 @@ export function valuePow(value, pow, mod = new Uint8Array([0]), mul = valueMul, 
 }
 
 
-export function extendedEuclid(value1, value2, sum = valueSum, mul = valueMul, composit_div = valueDiv, checker = (_, __, value) => valueComp(value, new Uint8Array([0]) == 0)) {
+export function extendedEuclid(value1, value2, 
+    sum = valueSum, mul = valueMul, 
+    composit_div = valueDiv, 
+    checker = (_, __, value) => valueComp(value, new Uint8Array([0]) == 0),
+    a0 = new Uint8Array([1]),
+    a1 = new Uint8Array([0]),
+    b0 = new Uint8Array([0]),
+    b1 = new Uint8Array([1])
+) {
     let r0 = value1;
     let r1 = value2;
-    let a0 = new Uint8Array([1]);
-    let a1 = new Uint8Array([0]);
-    let b0 = new Uint8Array([0]);
-    let b1 = new Uint8Array([1]);
     let tmp;
 
     let i = 0;
@@ -753,7 +786,7 @@ export function extendedEuclid(value1, value2, sum = valueSum, mul = valueMul, c
         div = composit_div(r0, r1);
     }
 
-    return [r0, a0, b0, i]; // b0 <= 0 and a0 >= 0 if i % 2 == 0 and i != 1
+    return [r0, a0, b0, i, r1, a1, b1]; // b0 <= 0 and a0 >= 0 if i % 2 == 0 and i != 1
 }
 
 

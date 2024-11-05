@@ -29,11 +29,11 @@ function generationHelper(m, result, i, count) {
         i++;
     }
 
-    return false;
+    return null;
 }
 
 
-export function selectBase(m) { // selects base by trying, may not work for any base
+export function selectBase(m) { // selects base by trying, may not work for some bases
     let max = 1 << m;
     let result = max | 1;
 
@@ -73,7 +73,7 @@ function generationCompositHelper(m, ns, result, i, count) {
     if (count == 0)
         return rabin_irreducability_test(result, ns, m);
         
-    while (i < result.length - 1 - count) {
+    while (i < result.length - count) {
         result[i] = 1;
 
         if (generationCompositHelper(m, ns, result, i + 1, count - 1)) {
@@ -91,6 +91,7 @@ function generationCompositHelper(m, ns, result, i, count) {
 export function generateCompositBase(m, t) {
     let ks = get_prime_divisors(t);
     let ns = new Array(ks.length); // has to be sorted and ks has to end with 1
+    let max = 1 << m;
 
     for (let i = 0; i < ks.length; i++) {
         ns[i] = t / ks[ks.length - i - 1];
@@ -104,6 +105,17 @@ export function generateCompositBase(m, t) {
         let tmpResult = [...result]
         if (generationCompositHelper(m, ns, tmpResult, 1, i)) {
             return tmpResult;
+        }
+    }
+
+    for (let i = 0; i < max; i++) {
+        let tmpResult = [...result];
+        for (let j = 0; j < max; j++) {
+            tmpResult[tmpResult.length - 1] = j;
+            tmpResult[tmpResult.length - 2] = i;
+            if (rabin_irreducability_test(tmpResult, ns, m)) {
+                return tmpResult;
+            }
         }
     }
 
@@ -151,17 +163,18 @@ export function valsDiv(val1, val2) {
 
 
 export function valsPow(val, pow) {
-    if (val == 0)
-        return 0;
     if (pow == 0)
         return 1;
+
+    if (val == 0)
+        return 0;
 
     return every_val[every_val_index[val] * pow % every_val.length];
 }
 
 
 function extend(twoDArray, m) {
-    let result = new Array(twoDArray.length * m);
+    let result = new Array(twoDArray.length * m).fill(0);
     let actual_size = Math.ceil(twoDArray[0].length / BITS_IN_BYTE);
 
     for (let i = 0; i < twoDArray.length; i++) {
@@ -171,6 +184,7 @@ function extend(twoDArray, m) {
 
             for (let j = 0; j < twoDArray[0].length; j++) {
                 let left_shift = BITS_IN_BYTE - 1 - j % BITS_IN_BYTE;
+                let t = ((twoDArray[i][j] >> right_shift) & 1) << left_shift;
                 result[i * m + k][Math.floor(j / BITS_IN_BYTE)] |= ((twoDArray[i][j] >> right_shift) & 1) << left_shift;
             }
         }
@@ -205,7 +219,7 @@ function getHBin(m, n, t) {
 
 
 export function generateG(m, n, t) {
-    return helpers.slau(getHBin(m, n, t), n, n - m * t);
+    return helpers.findKernel(getHBin(m, n, t), t * m, n); // i guessed kernel for H should be returned
 }
 
 
@@ -227,7 +241,7 @@ function simplePolyMul(poly1, poly2) {
 
 function simplePolySumOrSub(poly1, poly2) {
     if (poly1.length == 0 || poly2.length == 0) 
-        return poly1.length > poly2.length ? new Array(...poly1) : new Array(...poly2);
+        return poly1.length > poly2.length ? [...poly1] : [...poly2];
 
     let adder, result;
 
@@ -288,13 +302,16 @@ function simplePolyDiv(poly1, poly2) {
 
 
 function polyInverse(poly1) {
-    return helpers.extendedEuclid(poly1, g, simplePolySumOrSub, simplePolyMul, simplePolyDiv, (_, __, poly) => poly.length == 0)[0];
+    let eu = helpers.extendedEuclid(g, poly1, simplePolySumOrSub, simplePolyMul, simplePolyDiv, (_, __, poly) => poly.length == 0, [1], [0], [0], [1]);
+    return simplePolyMul(eu[2], [valsDiv(1, eu[0][0])]);
 }
 
 
 function polySqrt(poly, m) {
-    let pow = helpers.valuePow(new Uint8Array[2], helpers.genValue((g.length - 1) * m - 1));
-    return helpers.valuePow(poly, pow, base, simplePolyMul, simplePolyDiv);
+    let pow = helpers.valuePow(new Uint8Array([2]), helpers.genValue((g.length - 1) * m - 1));
+    //let tmp = helpers.valuePow(poly, pow, g, simplePolyMul, simplePolyDiv, [1]);
+    //let tmp1 = simplePolyDiv(simplePolyMul(tmp, tmp), g)[1];
+    return helpers.valuePow(poly, pow, g, simplePolyMul, simplePolyDiv, [1]);
 }
 
 
@@ -305,6 +322,9 @@ export function initialize_composit(new_g, new_Ls) {
 
 
 function calculate(poly, x) {
+    if (poly.length == 0)
+        return 0;
+
     let result = 0;
 
     for (let i = 0; i < poly.length; i++) {
@@ -333,19 +353,34 @@ function genSyndrome(c) {
 }
 
 
-export function patterson(c, m) {
+function genSyndrome1(c) {
+    let result = [];
+
+    for (let i = 0; i < Ls.length; i++) {
+        if (helpers.getBit(c, i) == 1) {
+            result = simplePolyDiv(simplePolySumOrSub(result, polyInverse(simplePolySumOrSub([Ls[i]], [1, 0]))), g)[1];
+        }
+    }
+
+    return result;
+}
+
+
+export function patterson(c, m, t) {
     let S = genSyndrome(c);
+    //let S1 = genSyndrome1(c);
 
     if (S.length == 0)
         return c;
 
-    let T = polyInverse(S, g);
+    let T = polyInverse(S);
     let r = polySqrt(simplePolySumOrSub(T, [1, 0]), m);
+    //let isS = simplePolyDiv(simplePolyMul(r, r), g)[1];
 
-    let eu = helpers.extendedEuclid(r, g, simplePolySumOrSub, simplePolyMul, simplePolyDiv, (b, _, a) => a.length == 0 || b.length - 1 > Math.floor(a.length / 2 - 1)); // condition is questionable
+    let eu = helpers.extendedEuclid(g, r, simplePolySumOrSub, simplePolyMul, simplePolyDiv, (_, __, a) => a.length - 1 <= Math.floor(t / 2), [1], [], [], [1]); // condition is questionable
 
-    let o = simplePolyMul(eu[2], eu[2]);
-    o = simplePolySumOrSub(o, simplePolyMul([1, 0], simplePolyMul(eu[0], eu[0])))
+    let o = simplePolyMul(eu[4], eu[4]);
+    o = simplePolySumOrSub(o, simplePolyMul([1, 0], simplePolyMul(eu[6], eu[6])));
 
     let e = new Uint8Array(c.length);
     for (let i = 0; i < Ls.length; i++) {
@@ -353,6 +388,8 @@ export function patterson(c, m) {
             helpers.setBit(e, i);
         }
     }
+
+    //let Ss = genSyndrome(new Uint8Array([6, 0]));
 
     return helpers.valueXOR(c, e);
 }
@@ -389,24 +426,27 @@ function get_prime_divisors(number) {
 function rabin_irreducability_test(P, ns, m) {
     let currentPoly = [1, 0];
     let currentMul = ns[0] * m;
+    let j = 0;
 
     for (let i = 0; i < ns.length - 1; i++) {
-        for (let j = 0; j < currentMul; j++) {
+        while (j < currentMul) {
             currentPoly = simplePolyDiv(simplePolyMul(currentPoly, currentPoly), P)[1];
+            j++;
         }
         
-        currentMul = ns[i + 1] * m - currentMul;
+        currentMul = ns[i + 1] * m;
 
         let h = simplePolySumOrSub(currentPoly, [1, 0]);
-        let g = helpers.extendedEuclid(P, h, simplePolySumOrSub, simplePolyMul, simplePolyDiv, (_, __, poly) => poly.length == 0)[0];
+        let g = helpers.extendedEuclid(P, h, simplePolySumOrSub, simplePolyMul, simplePolyDiv, (_, __, poly) => poly.length == 0, [1], [0], [0], [1])[0];
 
         if (g.length != 1 || g[0] != 1) {
             return false;
         }
     }
 
-    for (let j = 0; j < currentMul; j++) {
+    while (j < currentMul) {
         currentPoly = simplePolyDiv(simplePolyMul(currentPoly, currentPoly), P)[1];
+        j++;
     }
 
     let g = simplePolySumOrSub(currentPoly, [1, 0]);
