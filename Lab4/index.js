@@ -1,23 +1,24 @@
 import * as cypher from "./don't_know_how_to_call_it.js"
 import * as hf from "./helper_functions.js"
 import fs, { existsSync } from 'fs';
+import { StringDecoder } from 'string_decoder';
 
 
 const BITS_IN_BYTE = 8;
 
 
 function main() {
-    // let keys = cypher.genKey(256, 200, 7);
+    let keys = cypher.genKey(256, 200, 7);
     // let keys = cypher.genKey(2048, 1751, 27);
 
-    // const inputFile = "test.txt";
-    // const outputFile1 = "encrypted.txt";
-    // const outputFile2 = "decrypted.txt";
+    const inputFile = "test.txt";
+    const outputFile1 = "encrypted.txt";
+    const outputFile2 = "decrypted.txt";
 
-    // const inputData = fs.readFileSync(inputFile);
+    const inputData = fs.readFileSync(inputFile);
 
-    // fs.writeFileSync(outputFile1, cypher.encrypt(inputData, keys[0]));
-    // fs.writeFileSync(outputFile2, cypher.decrypt(fs.readFileSync(outputFile1), keys[1]));
+    fs.writeFileSync(outputFile1, cypher.encrypt(inputData, keys[0]));
+    fs.writeFileSync(outputFile2, cypher.decrypt(fs.readFileSync(outputFile1), keys[1]));
 
     const [,, mode, arg1, arg2, arg3, arg4, arg5] = process.argv;
 
@@ -80,6 +81,8 @@ function main() {
 
                 data = cypher.decrypt(inputData, key);
             }
+
+            //console.log(new StringDecoder('utf8').write(data));
 
         } catch (error) {
             console.error(`Invalid key format`);
