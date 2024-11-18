@@ -8,17 +8,17 @@ const BITS_IN_BYTE = 8;
 
 
 function main() {
-    let keys = cypher.genKey(256, 200, 7);
-    // let keys = cypher.genKey(2048, 1751, 27);
+    // let keys = cypher.genKey(256, 200, 7);
+    // // let keys = cypher.genKey(2048, 1751, 27);
 
-    const inputFile = "test.txt";
-    const outputFile1 = "encrypted.txt";
-    const outputFile2 = "decrypted.txt";
+    // const inputFile = "test.txt";
+    // const outputFile1 = "encrypted.txt";
+    // const outputFile2 = "decrypted.txt";
 
-    const inputData = fs.readFileSync(inputFile);
+    // const inputData = fs.readFileSync(inputFile);
 
-    fs.writeFileSync(outputFile1, cypher.encrypt(inputData, keys[0]));
-    fs.writeFileSync(outputFile2, cypher.decrypt(fs.readFileSync(outputFile1), keys[1]));
+    // fs.writeFileSync(outputFile1, cypher.encrypt(inputData, keys[0]));
+    // fs.writeFileSync(outputFile2, cypher.decrypt(fs.readFileSync(outputFile1), keys[1]));
 
     const [,, mode, arg1, arg2, arg3, arg4, arg5] = process.argv;
 
@@ -41,14 +41,14 @@ function main() {
         try {
             hf.writeObjectToFile(keys[0], arg4);
         } catch (error) {
-            console.error(`Cannot write to file ${outputFile}`);
+            console.error(`Cannot write to file ${arg4}`);
             return;
         }
 
         try {
             hf.writeObjectToFile(keys[1], arg5);
         } catch (error) {
-            console.error(`Cannot write to file ${outputFile}`);
+            console.error(`Cannot write to file ${arg5}`);
             return;
         }
         

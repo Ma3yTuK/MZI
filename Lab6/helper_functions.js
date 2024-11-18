@@ -371,6 +371,7 @@ export function shiftRight(byt, shift, fill = false) {
 
 export function setBit(value, pos) {
     value[Math.floor(pos / BITS_IN_BYTE)] |= 1 << (BITS_IN_BYTE - 1 - pos % BITS_IN_BYTE);
+    return value;
 }
 
 
@@ -758,7 +759,7 @@ export function valuePow(value, pow, mod = new Uint8Array([0]), mul = valueMul, 
 export function extendedEuclid(value1, value2, 
     sum = valueSum, mul = valueMul, 
     composit_div = valueDiv, 
-    checker = (_, __, value) => valueComp(value, new Uint8Array([0]) == 0),
+    checker = (_, __, value) => valueComp(value, new Uint8Array([0])) == 0,
     a0 = new Uint8Array([1]),
     a1 = new Uint8Array([0]),
     b0 = new Uint8Array([0]),

@@ -10,8 +10,16 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@julusian/jpeg-turbo": "^2.2.0",
+    "@texel/color": "^1.1.4",
+    "color-core": "^1.4.0",
     "fs": "^0.0.1-security",
+    "jpeg": "github:giovannicalo/node-jpeg",
+    "sharp": "^0.33.5",
     "typeson": "^9.0.3",
     "typeson-registry": "^11.1.1"
+  },
+  "devDependencies": {
+    "color-space": "^2.0.1"
   }
 }

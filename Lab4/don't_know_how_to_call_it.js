@@ -11,7 +11,7 @@ function prepareMessage(message, k) { // here message mod k = 0
     let i;
     let result = [];
 
-    for (i = 0; i < message.length * BITS_IN_BYTE - k + 1; i += k) {
+    for (i = 0; i + k <= message.length * BITS_IN_BYTE; i += k) {
         let starting_byte = Math.floor(i / BITS_IN_BYTE);
         let ending_byte = Math.ceil((i + k) / BITS_IN_BYTE);
 
@@ -24,16 +24,16 @@ function prepareMessage(message, k) { // here message mod k = 0
 
 
 function unprepareMessage(message, k) { // message mod k = 0
-    let result = new Uint8Array(Math.ceil(message.length * k / BITS_IN_BYTE));
+    let result = new Uint8Array(Math.ceil(message.length * k / BITS_IN_BYTE) + 1);
 
     for (let i = 0; i < message.length; i++) {
-        let block = helpers.shiftRight(message[i], i * k % BITS_IN_BYTE);
+        let block = helpers.shiftRight(new Uint8Array([...message[i], 0]), i * k % BITS_IN_BYTE);
         for (let j = 0; j < block.length; j++) {
             result[Math.floor(i * k / BITS_IN_BYTE) + j] |= block[j]; 
         }
     }
 
-    return result;
+    return result.slice(0, -1);
 }
 
 

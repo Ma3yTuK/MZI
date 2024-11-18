@@ -136,7 +136,7 @@ function P(value) {
     let result = new Uint8Array(value.length);
 
     for (let i = 0; i < value.length; i++) {
-        result[i] = value[r_substitution[value.length - 1 - i]];
+        result[i] = value[r_substitution[i]];
     }
 
     return result;
@@ -149,7 +149,15 @@ function L(value) {
     let result = [];
 
     for (let i = 0; i < BLOCK_COUNT; i++) {
-        result = [...result, helpers.matrixMulVector(A_matrix, value.slice(i * BLOCK_COUNT, (i + 1) * BLOCK_COUNT), matrix_a.length, (value.length / BLOCK_COUNT) * BITS_IN_BYTE)];
+        let tmp = new Uint8Array(value.length / BLOCK_COUNT);
+        let vector = value.slice(i * BLOCK_COUNT, (i + 1) * BLOCK_COUNT);
+
+        for (let j = 0; j < vector.length * BITS_IN_BYTE; j++) {
+            if (helpers.getBit(vector, j) == 1) {
+                tmp = helpers.valueXOR(tmp, A_matrix[j]);
+            }
+        }
+        result = [...result, ...tmp];
     }
 
     return new Uint8Array(result);
@@ -163,8 +171,10 @@ function nextK(previousK, c_index) {
 
 function E(K, m) {
     let result = helpers.valueXOR(K, m);
+    let current_K = K;
     
-    for (let i = 0, current_K = nextK(K, i); i < C_iterables.length; i++, current_K = nextK(current_K, i)) {
+    for (let i = 0; i < C_iterables.length; i++) {
+        current_K = nextK(current_K, i);
         result = helpers.valueXOR(current_K, L(P(S(result))));
     }
 
@@ -187,15 +197,15 @@ function initialize(init_vector, message) {
 
 function hash_iteration(m) {
     h = G(N, h, m);
-    N = helpers.valueSum(N, M.length * BITS_IN_BYTE).slice(-N.length);
+    N = helpers.valueSum(N, helpers.genValue(M.length * BITS_IN_BYTE)).slice(-h.length);
+    N = new Uint8Array([...new Uint8Array(h.length - N.length), ...N]);
     SIGMA = helpers.valueSum(SIGMA, m).slice(-SIGMA.length);
 }
 
 
 export function hash(message, is_long_hashing) {
-    const ZERO_N = new Uint8Array(N.length);
-
     let init_vector;
+
     if (is_long_hashing) {
         init_vector = LONT_INIT_VECTOR;
     } else {
@@ -204,24 +214,21 @@ export function hash(message, is_long_hashing) {
 
     initialize(init_vector, message);
 
+    const ZERO_N = new Uint8Array(N.length);
+
     let block_size = INPUT_VALUE_LENGTH / BITS_IN_BYTE;
     let m;
 
-    while (M.length > block_size) {
+    while (M.length >= block_size) {
         m = M.slice(-block_size);
         hash_iteration(m);
-        M = M.slice(0, slice_border);
+        M = M.slice(0, -block_size);
     }
 
-    m = new Uint8Array(INPUT_VALUE_LENGTH / BITS_IN_BYTE);
-
-    for (let i = 0; i < M.length; i++) {
-        m[i] = M[i];
-    }
-
-    m[m.length - 1] |= 1;
+    m = new Uint8Array([...new Uint8Array(block_size - M.length - 1), 1, ...M]);
 
     hash_iteration(m);
+
     h = G(ZERO_N, h, N);
     h = G(ZERO_N, h, SIGMA);
 

@@ -1,5 +1,4 @@
 import * as helpers from "./helper_functions.js";
-import * as hasher from "./hash.js";
 
 
 const BITS_IN_BYTE = 8;
@@ -12,16 +11,18 @@ let a;
 
 export function points_sum(point1, point2) {
     let r, r0;
+    //p = helpers.genValue(13);
+    //a = helpers.genValue(1);
 
     if (helpers.valueComp(point1[0], new Uint8Array([0])) == 0 && helpers.valueComp(point1[1], new Uint8Array([0])) == 0)
         return point2;
 
     if (helpers.valueComp(point2[0], new Uint8Array([0])) == 0 && helpers.valueComp(point2[1], new Uint8Array([0])) == 0)
-        return point2;
+        return point1;
 
-    if (helpers.valueComp(point1[0], point2[0]) == 0) {
-        r = helpers.valueDiv(helpers.valueSub(helpers.valueSum((point2[1] + p) - point1[1])), p)[1];
-        r0 = helpers.valueDiv(helpers.valueSub(helpers.valueSum((point2[0] + p) - point1[0])), p)[1];
+    if (helpers.valueComp(point1[0], point2[0]) != 0) {
+        r = helpers.valueDiv(helpers.valueSub(helpers.valueSum(point2[1], p), point1[1]), p)[1];
+        r0 = helpers.valueDiv(helpers.valueSub(helpers.valueSum(point2[0], p), point1[0]), p)[1];
     } else {
         if (helpers.valueComp(helpers.valueDiv(helpers.valueSum(point1[1], point2[1]), p)[1], new Uint8Array([0])) == 0) {
             return [new Uint8Array([0]), new Uint8Array([0])];
@@ -31,12 +32,20 @@ export function points_sum(point1, point2) {
         r0 = helpers.valueDiv(helpers.valueMul(point1[1], helpers.genValue(2)), p)[1];
     }
 
-    let lambd = helpers.valueDiv(helpers.valueMul(helpers.extendedEuclid(p, r0)[2], r), p)[1];
+    let tmp = helpers.extendedEuclid(p, r0);
 
-    let newX = helpers.valueSub(helpers.valueSub(helpers.valueMul(lambd, lambd), point1[0]), point2[0]);
-    let newY = helpers.valueSub(helpers.valueMul(lambd, helpers.valueSub(point1[0], newX)), point1[1]);
+    if (tmp[3] % 2 == 0) {
+        tmp = helpers.valueSub(p, tmp[2]);
+    } else {
+        tmp = tmp[2];
+    }
+    
+    let lambd = helpers.valueDiv(helpers.valueMul(tmp, r), p)[1];
 
-    return [helpers.valueDiv(newX, p)[1], helpers.valueDiv(newY, p)];
+    let newX = helpers.valueDiv(helpers.valueSub(helpers.valueSum(helpers.valueSub(helpers.valueSum(helpers.valueMul(lambd, lambd), p), point1[0]), p), point2[0]), p)[1];
+    let newY = helpers.valueSub(helpers.valueSum(helpers.valueMul(lambd, helpers.valueSub(helpers.valueSum(point1[0], p), newX)), p), point1[1]);
+
+    return [newX, helpers.valueDiv(newY, p)[1]];
 }
 
 
@@ -44,10 +53,10 @@ export function point_by_scalar(point, scalar) {
     if (helpers.valueComp(scalar, new Uint8Array([0])) == 0)
         return [new Uint8Array([0]), new Uint8Array([0])];
 
-    let result = point_by_scalar(points_sum(point, point), helpers.shiftLeft(scalar, 1));
+    let result = point_by_scalar(points_sum(point, point), helpers.shiftRight(scalar, 1));
 
     if (scalar[scalar.length - 1] & 1 == 1) 
-        result = points_sum(scalar, result);
+        result = points_sum(point, result);
 
     return result;
 }
