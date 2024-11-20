@@ -1,8 +1,7 @@
-import * as hf from "./helper_functions.js"
-import fs, { existsSync } from 'fs';
 import { StringDecoder } from 'string_decoder';
 import sharp from 'sharp';
 import { Color } from 'color-core';
+import * as fs from 'fs';
 
 
 const SWAP_FIRST_ROW = 3;
@@ -212,62 +211,37 @@ async function retrieve(file_path) {
 
 
 async function main() {
-    let m = "\
-        It is really working!It is really working!It is really working!It is really working!It is really working!It is really working!\
-        It is really working!It is really working!It is really working!It is really working!It is really working!It is really working!\
-        It is really working!It is really working!It is really working!It is really working!It is really working!It is really working!\
-        It is really working!It is really working!It is really working!It is really working!It is really working!It is really working!\
-        It is really working!It is really working!It is really working!It is really working!It is really working!It is really working!\
-        It is really working!It is really working!It is really working!It is really working!It is really working!It is really working!\
-        It is really working!It is really working!It is really working!It is really working!It is really working!It is really working!\
-        It is really working!It is really working!It is really working!It is really working!It is really working!It is really working!\
-        It is really working!It is really working!It is really working!It is really working!It is really working!It is really working!\
-        It is really working!It is really working!It is really working!It is really working!It is really working!It is really working!\
-        It is really working!It is really working!It is really working!It is really working!It is really working!It is really working!\
-        It is really working!It is really working!It is really working!It is really working!It is really working!It is really working!\
-        It is really working!It is really working!It is really working!It is really working!It is really working!It is really working!\
-        It is really working!It is really working!It is really working!It is really working!It is really working!It is really working!\
-        It is really working!It is really working!It is really working!It is really working!It is really working!It is really working!\
-        It is really working!It is really working!It is really working!It is really working!It is really working!It is really working!\
-        It is really working!It is really working!It is really working!It is really working!It is really working!It is really working!\
-        It is really working!It is really working!It is really working!It is really working!It is really working!It is really working!\
-        It is really working!It is really working!It is really working!It is really working!It is really working!It is really working!\
-        It is really working!It is really working!It is really working!It is really working!It is really working!It is really working!\
-        It is really working!It is really working!It is really working!It is really working!It is really working!It is really working!\
-        It is really working!It is really working!It is really working!It is really working!It is really working!It is really working!\
-        It is really working!It is really working!It is really working!It is really working!It is really working!It is really working!\
-        It is really working!It is really working!It is really working!It is really working!It is really working!It is really working!\
-        It is really working!It is really working!It is really working!It is really working!It is really working!It is really working!\
-        It is really working!It is really working!It is really working!It is really working!It is really working!It is really working!\
-        It is really working!It is really working!It is really working!It is really working!It is really working!It is really working!\
-        It is really working!It is really working!It is really working!It is really working!It is really working!It is really working!\
-        It is really working!It is really working!It is really working!It is really working!It is really working!It is really working!\
-        It is really working!It is really working!It is really working!It is really working!It is really working!It is really working!\
-        It is really working!It is really working!It is really working!It is really working!It is really working!It is really working!\
-        It is really working!It is really working!It is really working!It is really working!It is really working!It is really working!\
-        It is really working!It is really working!It is really working!It is really working!It is really working!It is really working!\
-        It is really working!It is really working!It is really working!It is really working!It is really working!It is really working!\
-        It is really working!It is really working!It is really working!It is really working!It is really working!It is really working!\
-        It is really working!It is really working!It is really working!It is really working!It is really working!It is really working!\
-        It is really working!It is really working!It is really working!It is really working!It is really working!It is really working!\
-        It is really working!It is really working!It is really working!It is really working!It is really working!It is really working!\
-        It is really working!It is really working!It is really working!It is really working!It is really working!It is really working!\
-        It is really working!It is really working!It is really working!It is really working!It is really working!It is really working!\
-        It is really working!It is really working!It is really working!It is really working!It is really working!It is really working!\
-        It is really working!It is really working!It is really working!It is really working!It is really working!It is really working!\
-        It is really working!It is really working!It is really working!It is really working!It is really working!It is really working!\
-        It is really working!It is really working!It is really working!It is really working!It is really working!It is really working!\
-        It is really working!It is really working!It is really working!It is really working!It is really working!It is really working!\
-        It is really working!It is really working!It is really working!It is really working!It is really working!It is really working!\
-        ";
-    m = "This is a secret message!";
-    await steganography("input.jpg", Buffer.from(m, 'utf-8'), "output.jpg");
-    let r = new StringDecoder("utf-8").write(await retrieve("output.jpg"));
+    const [,, mode, arg1, arg2, arg3] = process.argv;
 
-    if (r !== m) {
-        console.log("Error: message does not match");
-    } else {
-        console.log("Success!");
+    if (!fs.existsSync(arg1)) {
+        console.error("Invalid arguments");
+        return;
+    }
+    
+    try {
+        if (mode == "insert") {
+            let m = fs.readFileSync(arg1);
+    
+            if (!fs.existsSync(arg2)) {
+                console.error("Invalid arguments");
+                return;
+            }
+    
+            await steganography(arg2, m, arg3);
+    
+            console.log("Done!");
+        } else if (mode == "retrieve") {
+            fs.writeFileSync(arg2, await retrieve(arg1));
+    
+            console.log("Done!");
+        } else {
+            console.log("Invalid mode!");
+        }
+    } catch (e) {
+        if (e.message == "Message is too big")
+            console.log(e.message);
+        else
+            console.log("Something went wrong");
     }
 }
 
